@@ -32,7 +32,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // Connect to the WebSocket server
-const socket = io('http://localhost:8080/api/socket');
+const socket = io('https://tracking-apps-test.vercel.app/api/socket');
 
 // Listen for location updates from the server
 socket.on('locationUpdate', (data) => {
