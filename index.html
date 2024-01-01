@@ -24,73 +24,83 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
   <script>
- // Initialize Leaflet map
- const map = L.map('map').setView([0, 0], 14);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
-}).addTo(map);
+    // Initialize Leaflet map
+    const map = L.map('map').setView([0, 0], 14);
 
-// Connect to the WebSocket server
-const socket = io('https://tracking-apps-test.vercel.app/api/socket');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
-// Listen for location updates from the server
-socket.on('locationUpdate', (data) => {
-  console.log('Received location update:', data);
+    // Connect to the WebSocket server
+    // const socket = io('http://localhost:8080/api/socket');
+    const socket = io('https://tracking-apps-test.vercel.app/api/socket');
 
-  // Update the marker on the map
-  const marker = markers[data.id];
-  if (marker) {
-    marker.setLatLng([data.location.lat, data.location.lng]);
-  } else {
-    // Add a new marker for the user
-    markers[data.id] = L.marker([data.location.lat, data.location.lng]).addTo(map);
-  }
 
-  // Log the latitude and longitude to the console
-  console.log(`Latitude: ${data.location.lat}, Longitude: ${data.location.lng}`);
-});
+    // Listen for location updates from the server
+    socket.on('locationUpdate', (data) => {
+      console.log('Received location update:', data);
 
-// Listen for user disconnection
-socket.on('userDisconnected', (userId) => {
-  console.log('User disconnected:', userId);
+      // Update the marker on the map
+      const marker = markers[data.id];
+      if (marker) {
+        marker.setLatLng([data.location.lat, data.location.lng]);
+      } else {
+        // Add a new marker for the user
+        markers[data.id] = L.marker([data.location.lat, data.location.lng]).addTo(map);
+      }
 
-  // Remove marker from the map
-  const marker = markers[userId];
-  if (marker) {
-    map.removeLayer(marker);
-    delete markers[userId];
-  }
-});
+      // Log the latitude and longitude to the console
+      console.log(`Latitude: ${data.location.lat}, Longitude: ${data.location.lng}`);
+    });
 
-// Try to get user's location using geolocation
-navigator.geolocation.getCurrentPosition(
-  (position) => {
-    const userLocation = [position.coords.latitude, position.coords.longitude];
+    // Listen for user disconnection
+    socket.on('userDisconnected', (userId) => {
+      console.log('User disconnected:', userId);
 
-    // Center the map on the user's location
-    map.setView(userLocation);
+      // Remove marker from the map
+      const marker = markers[userId];
+      if (marker) {
+        map.removeLayer(marker);
+        delete markers[userId];
+      }
+    });
 
-    // Add a marker for the user's location
-    const marker = L.marker(userLocation).addTo(map);
+    // Function to update user's location
+    function updateLocation() {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = [position.coords.latitude, position.coords.longitude];
 
-    // Store the marker in a dictionary for future updates
-    markers['user'] = marker;
+          // Center the map on the user's location
+          map.setView(userLocation);
 
-    // Emit initial location to the server
-    socket.emit('locationUpdate', { id: 'user', location: { lat: userLocation[0], lng: userLocation[1] } });
+          // Update or add a marker for the user's location
+          const marker = markers['user'];
+          if (marker) {
+            marker.setLatLng(userLocation);
+          } else {
+            markers['user'] = L.marker(userLocation).addTo(map);
+          }
 
-    // Log the initial latitude and longitude to the console
-    console.log(`Initial Latitude: ${userLocation[0]}, Initial Longitude: ${userLocation[1]}`);
-  },
-  () => {
-    // Handle errors
-    console.error('Error: The Geolocation service failed.');
-  }
-);
+          // Emit updated location to the server
+          socket.emit('locationUpdate', { id: 'user', location: { lat: userLocation[0], lng: userLocation[1] } });
 
-// Dictionary to store markers for each user
-const markers = {};
+          // Log the updated latitude and longitude to the console
+          console.log(`Updated Latitude: ${userLocation[0]}, Updated Longitude: ${userLocation[1]}`);
+        },
+        () => {
+          // Handle errors
+          console.error('Error: The Geolocation service failed.');
+        }
+      );
+    }
+
+    // Update location every 2 seconds
+    setInterval(updateLocation, 2000);
+
+    // Dictionary to store markers for each user
+    const markers = {};
   </script>
 </body>
 
