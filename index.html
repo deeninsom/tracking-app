@@ -128,7 +128,7 @@
     // Function to check if the user is within the specified range of places A and B
     function checkUserLocation(userLat, userLng) {
       // Set the range (in kilometers) within which the notification will be triggered
-      const notificationRange = 1.0;
+      const notificationRange = 0.001;
 
       // Calculate the distance from the user to places A and B
       const distanceToPlaceA = calculateDistance(userLat, userLng, placeALat, placeALng);
