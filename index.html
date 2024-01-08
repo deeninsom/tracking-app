@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Real-time Location Tracking</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
   <style>
     body {
       margin: 0;
@@ -22,20 +23,38 @@
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
   <script>
 
     // Initialize Leaflet map
-    const map = L.map('map').setView([0, 0], 14);
+    const map = L.map('map').setView([-7.3025, 112.7774], 15); // Set default view to a location between A and B
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
     // Connect to the WebSocket server
-    // const socket = io('http://localhost:8080/api/socket');
-    const socket = io('https://tracking-apps-test.vercel.app/api/socket');
+    const socket = io('http://localhost:8080/api/socket');
 
+    // Define coordinates for places A and B
+    const placeALat = -7.3020535761803975;
+    const placeALng = 112.77747888874491;
+    const placeBLat = -7.302666676063905;
+    const placeBLng = 112.77678249739061;
+
+    // Markers for places A and B
+    const markerA = L.marker([placeALat, placeALng]).addTo(map);
+    const markerB = L.marker([placeBLat, placeBLng]).addTo(map);
+
+    // Polyline from place A to place B
+    const control = L.Routing.control({
+      waypoints: [
+        L.latLng(placeALat, placeALng),
+        L.latLng(placeBLat, placeBLng)
+      ],
+      routeWhileDragging: true
+    }).addTo(map);
 
     // Listen for location updates from the server
     socket.on('locationUpdate', (data) => {
@@ -45,6 +64,8 @@
       const marker = markers[data.id];
       if (marker) {
         marker.setLatLng([data.location.lat, data.location.lng]);
+        // Check if the user is within the specified range of places A and B
+        checkUserLocation(data.location.lat, data.location.lng);
       } else {
         // Add a new marker for the user
         markers[data.id] = L.marker([data.location.lat, data.location.lng]).addTo(map);
@@ -79,6 +100,8 @@
           const marker = markers['user'];
           if (marker) {
             marker.setLatLng(userLocation);
+            // Check if the user is within the specified range of places A and B
+            checkUserLocation(userLocation[0], userLocation[1]);
           } else {
             markers['user'] = L.marker(userLocation).addTo(map);
           }
@@ -101,6 +124,43 @@
 
     // Dictionary to store markers for each user
     const markers = {};
+
+    // Function to check if the user is within the specified range of places A and B
+    function checkUserLocation(userLat, userLng) {
+      // Set the range (in kilometers) within which the notification will be triggered
+      const notificationRange = 1.0;
+
+      // Calculate the distance from the user to places A and B
+      const distanceToPlaceA = calculateDistance(userLat, userLng, placeALat, placeALng);
+      const distanceToPlaceB = calculateDistance(userLat, userLng, placeBLat, placeBLng);
+
+      // Check if the user is within the specified range of places A and B
+      if (distanceToPlaceA <= notificationRange || distanceToPlaceB <= notificationRange) {
+        // Send a notification to the user
+        if (Notification.permission === "granted") {
+          const notification = new Notification("Anda berada dalam jarak tempat A atau B!");
+        }
+      }
+    }
+
+    // Function to calculate the Haversine distance between two points
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Radius of the Earth in kilometers
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c; // Distance in kilometers
+
+      return distance;
+    }
+
+    // Function to convert degrees to radians
+    function toRad(degrees) {
+      return degrees * (Math.PI / 180);
+    }
   </script>
 </body>
 
